@@ -1,4 +1,4 @@
-import { db } from './db';
+import { db } from "./db";
 
 export type Tenant = { id: string; slug: string; name: string };
 

@@ -1,4 +1,4 @@
-import { withRls } from './db';
+import { withRls } from "./db";
 
 export type Note = {
   id: number;
@@ -8,14 +8,18 @@ export type Note = {
   created_at: string;
 };
 
-export async function listNotes(tenantId: string, userId: string): Promise<Note[]> {
+export async function listNotes(
+  tenantId: string,
+  userId: string
+): Promise<Note[]> {
   return withRls(tenantId, userId, async (sql) => {
-    return sql<Note>`
+    const rows = await sql<Note>`
       select id, title, body, owner_user_id, created_at
       from notes
       order by id desc
       limit 50
     `;
+    return rows;
   });
 }
 
@@ -31,6 +35,6 @@ export async function createNote(
       values (${tenantId}, ${userId}, ${title}, ${body})
       returning id
     `;
-    return rows[0];
+    return rows[0] ?? null;
   });
 }

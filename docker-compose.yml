@@ -2,20 +2,14 @@ services:
   db:
     image: postgres:16
     environment:
-      # Admin do Postgres
       POSTGRES_USER: admin
-      POSTGRES_PASSWORD: "1234567"
+      POSTGRES_PASSWORD: 1234567
       POSTGRES_DB: saas_template
-
-      # Credenciais do usuário do app (usadas pelo init script)
-      APP_DB_USER: app_user
-      APP_DB_PASSWORD: "1234567"
-    # Em produção no Coolify, NÃO exponha o banco:
-    # ports:
-    #   - "5432:5432"
+    ports:
+      - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
-      - ./db/init:/docker-entrypoint-initdb.d:ro
+      - ./db/init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d saas_template"]
       interval: 3s
@@ -25,9 +19,7 @@ services:
   migrate:
     build: .
     environment:
-      DATABASE_URL_ADMIN: "postgres://admin:1234567@db:5432/saas_template"
-      APP_DB_USER: app_user
-      APP_DB_PASSWORD: "1234567"
+      DATABASE_URL_ADMIN: postgres://admin:1234567@db:5432/saas_template
     depends_on:
       db:
         condition: service_healthy
@@ -38,16 +30,11 @@ services:
     environment:
       NODE_ENV: production
 
-      # No Coolify, troque para seu domínio HTTPS real:
-      # ex: https://saas.seudominio.com
-      APP_BASE_URL: "http://localhost:3000"
+      # IMPORTANTE no Coolify: coloque sua URL real (https://seu-dominio.com)
+      # Senão o enforceSameOrigin pode bloquear os POSTs de login/signup.
+      APP_BASE_URL: http://localhost:3000
 
-      # Conexão do app no Postgres (usuário do app)
-      DATABASE_URL: "postgres://app_user:1234567@db:5432/saas_template"
-
-      # Troque por uma chave grande aleatória (>= 32 chars)
-      APP_SECRET: "1234567"
-
+      DATABASE_URL: postgres://app_user:1234567@db:5432/saas_template
       SESSION_COOKIE_NAME: st_session
       SESSION_TTL_DAYS: "30"
     depends_on:
