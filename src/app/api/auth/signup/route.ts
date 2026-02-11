@@ -18,14 +18,14 @@ export async function POST(req: Request) {
     const passwordHash = hashPassword(password);
 
     const result = await db.begin(async (sql) => {
-      const tenantRows = await sql<{ id: string; slug: string }[]>`
+      const tenantRows = await sql<{ id: string; slug: string }>`
         insert into tenants (slug, name)
         values (${tenantSlug}, ${tenantName})
         returning id, slug
       `;
       const tenant = tenantRows[0];
 
-      const userRows = await sql<{ id: string }[]>`
+      const userRows = await sql<{ id: string }>`
         insert into users (email, name, password_hash)
         values (${email}, ${name}, ${passwordHash})
         returning id

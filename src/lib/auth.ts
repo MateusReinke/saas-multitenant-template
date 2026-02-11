@@ -55,7 +55,7 @@ export async function getSessionUser(): Promise<User | null> {
   if (!token) return null;
   const tokenHash = sha256Base64url(token);
 
-  const rows = await db<User[]>`
+  const rows = await db<User>`
     select u.id, u.email, u.name
     from sessions s
     join users u on u.id = s.user_id

@@ -21,20 +21,21 @@ export async function POST(req: Request) {
       return NextResponse.redirect(new URL(`/${tenantSlug}/login?error=Tenant%20não%20encontrado`, req.url));
     }
 
-    const userRows = await db<{ id: string; password_hash: string }[]>`
+    const userRows = await db<{ id: string; password_hash: string }>`
       select id, password_hash
       from users
       where email = ${email}
       limit 1
     `;
     const user = userRows[0];
+
     if (!user || !verifyPassword(password, user.password_hash)) {
       return NextResponse.redirect(new URL(`/${tenantSlug}/login?error=Credenciais%20inválidas`, req.url));
     }
 
     // RLS check: user must belong to this tenant
     const membership = await withRls(tenant.id, user.id, async (sql) => {
-      const rows = await sql<{ role: string }[]>`
+      const rows = await sql<{ role: string }>`
         select role from memberships
         where tenant_id = ${tenant.id} and user_id = ${user.id}
         limit 1
