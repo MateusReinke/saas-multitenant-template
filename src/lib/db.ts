@@ -1,38 +1,53 @@
 import postgres from "postgres";
 
-const dbUrl = process.env.DATABASE_URL;
-if (!dbUrl) {
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
   throw new Error("Missing DATABASE_URL");
 }
 
-// Cliente real do postgres
-const sql = postgres(dbUrl, {
+/**
+ * Cliente base do postgres.js (ele é "thenable", e o TS 5.7+ reclama em alguns awaits).
+ */
+const sqlBase = postgres(databaseUrl, {
   max: 10,
   idle_timeout: 20,
   connect_timeout: 10,
 });
 
 /**
- * Workaround TS 5.7+:
- * o postgres retorna um "thenable" e o TypeScript reclama ao usar await.
- * Aqui tipamos o template tag como retornando Promise<T[]>.
+ * A "tag" tipada como Promise<T[]> para o TypeScript aceitar await normalmente.
+ * (O postgres.js retorna um array de linhas.)
  */
-export const db = sql as unknown as (<T = any>(
+export type SqlTag = <T = any>(
   strings: TemplateStringsArray,
   ...values: any[]
-) => Promise<T[]>) &
-  typeof sql;
+) => Promise<T[]>;
 
-export type SQL = typeof sql;
+/**
+ * Export principal para queries fora de transação.
+ */
+export const db = sqlBase as unknown as SqlTag & typeof sqlBase;
 
+/**
+ * Export para usar métodos adicionais do postgres.js quando necessário (begin, end, etc.).
+ */
+export const sql = sqlBase;
+
+/**
+ * Executa uma função dentro de uma transação com RLS context setado.
+ * IMPORTANTE: dentro do callback, o "tx" também é tipado como SqlTag.
+ */
 export async function withRls<T>(
   tenantId: string,
   userId: string,
-  fn: (sql: SQL) => Promise<T>
-) {
-  return sql.begin(async (tx) => {
-    await tx`select set_config('app.tenant_id', ${tenantId}, true)`;
-    await tx`select set_config('app.user_id', ${userId}, true)`;
-    return fn(tx);
+  fn: (sql: SqlTag) => Promise<T>
+): Promise<T> {
+  return sqlBase.begin(async (tx) => {
+    const txTag = tx as unknown as SqlTag;
+
+    await txTag`select set_config('app.tenant_id', ${tenantId}, true)`;
+    await txTag`select set_config('app.user_id', ${userId}, true)`;
+
+    return fn(txTag);
   });
 }
